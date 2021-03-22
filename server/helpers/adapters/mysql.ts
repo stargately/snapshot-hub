@@ -132,6 +132,7 @@ export async function loadSpace(space: any) {
 }
 
 export async function loadSpaces() {
+  console.time('loadSpaces');
   const query = 'SELECT id, address FROM spaces';
   let result = [];
   try {

@@ -6,6 +6,8 @@ import db from './helpers/mysql';
 import relayer from './helpers/relayer';
 import { pinJson } from './helpers/ipfs';
 import { jsonParse, sendError, formatMessage } from './helpers/utils';
+import { v4 as uuidv4 } from 'uuid';
+import { Account } from 'iotex-antenna/lib/account/account';
 import {
   storeProposal,
   storeVote,
@@ -62,29 +64,30 @@ router.get('/:space/proposal/:id', async (req, res) => {
   const { space, id } = req.params;
   const query = `SELECT * FROM messages WHERE type = 'vote' AND space = ? AND JSON_EXTRACT(payload, "$.proposal") = ? ORDER BY timestamp ASC`;
   db.queryAsync(query, [space, id]).then(messages => {
-    res.json(
-      Object.fromEntries(
-        messages.map(message => {
-          const metadata = JSON.parse(message.metadata);
-          return [
-            message.address,
-            {
-              address: message.address,
-              msg: {
-                version: message.version,
-                timestamp: message.timestamp.toString(),
-                space: message.space,
-                type: message.type,
-                payload: JSON.parse(message.payload)
-              },
-              sig: message.sig,
-              authorIpfsHash: message.id,
-              relayerIpfsHash: metadata.relayer_ipfs_hash
-            }
-          ];
-        })
-      )
+    const obj = Object.fromEntries(
+      messages.map(message => {
+        const metadata = JSON.parse(message.metadata);
+        // TODO: only one ticket each address ?
+        return [
+          message.id,
+          {
+            address: message.address,
+            msg: {
+              version: message.version,
+              timestamp: message.timestamp.toString(),
+              space: message.space,
+              type: message.type,
+              payload: JSON.parse(message.payload)
+            },
+            sig: message.sig,
+            authorIpfsHash: message.id,
+            relayerIpfsHash: metadata.relayer_ipfs_hash
+          }
+        ];
+      })
     );
+    console.log(obj);
+    res.json(obj);
   });
 });
 
@@ -269,6 +272,35 @@ router.post('/message', async (req, res) => {
   }
 
   return res.json({ ipfsHash: authorIpfsRes });
+});
+
+router.post('/create-nonce', async (req, res) => {
+  const nonce = uuidv4();
+  req.session.nonce = nonce;
+  res.json({
+    nonce
+  });
+});
+
+router.post('/sign-in', async (req, res) => {
+  const { sign, address } = req.body;
+  const nonce = req.session.nonce;
+  req.session.nonce = null;
+  const msg = `${address}/${nonce}`;
+  const recovered = new Account().recover(msg, Buffer.from(sign, 'hex'), false);
+  if (recovered !== address) {
+    res.json({
+      ok: false,
+      error: {
+        code: 'auth/failed_to_login',
+        message: 'auth/failed_to_login'
+      }
+    });
+    return;
+  }
+  res.json({
+    ok: true
+  });
 });
 
 export default router;

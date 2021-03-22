@@ -22,7 +22,8 @@
       "esnext",
       "dom",
       "dom.iterable",
-      "scripthost"
+      "scripthost",
+      "es2019"
     ],
     "noImplicitAny": false,
     "resolveJsonModule": true,
