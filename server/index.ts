@@ -69,7 +69,7 @@ router.get('/:space/proposal/:id', async (req, res) => {
         const metadata = JSON.parse(message.metadata);
         // TODO: only one ticket each address ?
         return [
-          message.id,
+          message.address,
           {
             address: message.address,
             msg: {
