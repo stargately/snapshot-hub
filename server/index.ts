@@ -3,6 +3,7 @@ import express from 'express';
 import snapshot from '@snapshot-labs/snapshot.js';
 import { spaces } from './helpers/spaces';
 import db from './helpers/mysql';
+import { verifySignature } from './helpers/utils';
 import relayer from './helpers/relayer';
 import { pinJson } from './helpers/ipfs';
 import { jsonParse, sendError, formatMessage } from './helpers/utils';
@@ -138,17 +139,14 @@ router.post('/message', async (req, res) => {
   )
     return sendError(res, 'wrong message type');
 
-  console.log('message1', msg);
-
-  // TODO: don't verify signature for now
-  // if (
-  //   !(await verifySignature(
-  //     body.address,
-  //     body.sig,
-  //     hashPersonalMessage(body.msg)
-  //   ))
-  // )
-  // return sendError(res, 'wrong signature');
+  const recovered = new Account().recover(
+    JSON.stringify(msg),
+    Buffer.from(body.sig, 'hex'),
+    false
+  );
+  console.log(recovered);
+  console.log(body);
+  if (recovered !== body.address) return sendError(res, 'wrong signature');
 
   if (msg.type === 'delete-proposal') {
     const query = `SELECT address FROM messages WHERE type = 'proposal' AND id = ?`;
